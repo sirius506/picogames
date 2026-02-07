@@ -1,26 +1,23 @@
-#include "btstack_run_loop.h"
+/*
+ * Pico Games
+ *
+ * Collection of Raspberry Pi Pico games
+ * developped by KenKenMkIISR (https:github.com/KenKenMkIISR).
+ *
+ * Here, five games have ported to Pico W to support wireless game controllers,
+ * bluetooth pairing and game selection GUI has added.
+ */
 #include "pico/stdlib.h"
 #include "pico/util/queue.h"
 #include "pico/cyw43_arch.h"
 #include "pico/multicore.h"
 #include "hardware/watchdog.h"
-#include "btstack.h"
 #include "btapi.h"
 #include "picogames.h"
-#include "graphlib.h"
-#include "gamepad.h"
-#include "LCDdriver.h"
 
 extern int btstack_main(int argc, const char *argv[]);
 
 queue_t padevent_queue;
-
-static volatile LED_MODE led_mode;
-static volatile bool led_state;
-static struct repeating_timer led_timer;
-static volatile alarm_id_t btn_timer;
-
-#define	BLINK_PERIOD	250
 
 btstack_packet_callback_registration_t hci_event_callback_registration;
 
@@ -114,13 +111,36 @@ void post_event(uint16_t type, uint16_t code, void *ptr)
   }
 }
 
+void post_padevent(PADKEY_EVENT *padevent)
+{
+  PADEVENT event;
+
+  if (!queue_is_full(&padevent_queue))
+  {
+    event.type = padevent->type;
+    if (padevent->type == PAD_KEY_VBMASK)
+    {
+      event.key_code = 0;
+      event.vmask = padevent->vmask;
+      event.ptr = NULL;
+    }
+    else
+    {
+      event.key_code = padevent->lvkey;
+      event.vmask = 0;
+      event.ptr = NULL;
+    }
+    queue_try_add(&padevent_queue, &event);
+  }
+}
+
 void post_vkeymask(uint32_t mask)
 {
   PADEVENT event;
 
   if (!queue_is_full(&padevent_queue))
   {
-    event.type = PAD_VBMASK;
+    event.type = PAD_KEY_VBMASK;
     event.key_code = 0;
     event.vmask = mask;
     event.ptr = NULL;
@@ -129,70 +149,75 @@ void post_vkeymask(uint32_t mask)
   }
 }
 
-bool led_timer_callback(struct repeating_timer *t)
-{
-  if (led_mode == LED_BLINK)
-  {
-    if (led_state)
-    {
-      led_state = false;
-    }
-    else
-    {
-      led_state = true;
-    }
-    // !!
-  }
-}
-
-void pico_set_led(LED_MODE new_mode)
-{
-  if (new_mode != led_mode)
-  {
-    if (led_mode == LED_BLINK)
-      cancel_repeating_timer(&led_timer);
-
-    switch (new_mode)
-    {
-    case LED_OFF:
-     led_state = false;
-     break;
-    case LED_ON:
-     led_state = true;
-     break;
-    case LED_BLINK:
-     led_state = true;
-     add_repeating_timer_ms(BLINK_PERIOD, led_timer_callback, NULL, &led_timer);
-     break;
-   } 
-   led_mode = new_mode;
-   // !!! Set LED
- }
-}
-
 static PADEVENT pevent;
 
-PADEVENT *get_pad_event()
+int check_pad_connect()
 {
   if (queue_is_empty(&padevent_queue))
-    return NULL;
-
+    return 0;
   queue_remove_blocking(&padevent_queue, &pevent);
-  if (pevent.type == PAD_DISCONNECT)
-    watchdog_enable(1, 1);
+  if (pevent.type == PAD_CONNECT)
+    return 1;
+  return 0;
+}
 
-  return &pevent;
+PADEVENT *read_pad_event()
+{
+  PADEVENT *evp = NULL;
+
+  if (queue_is_empty(&padevent_queue))
+    return NULL;
+  queue_remove_blocking(&padevent_queue, &pevent);
+
+  switch (pevent.type)
+  {
+  case PAD_DISCONNECT:
+    watchdog_enable(1, 1);
+    break;
+  case PAD_KEY_PRESS:
+  case PAD_KEY_RELEASE:
+    evp = &pevent;
+    break;
+  default:
+    break;
+  }
+  return evp;
+}
+
+int64_t alarm_callback(alarm_id_t id, void *user_data)
+{
+  post_btreq(BB_CONN);
+  return 0;
 }
 
 uint32_t get_pad_vmask()
 {
   static uint32_t old_mask;
+  static alarm_id_t aid;
+
   if (queue_is_empty(&padevent_queue))
     return old_mask;
   queue_remove_blocking(&padevent_queue, &pevent);
 
+  if (aid)
+  {
+    cancel_alarm(aid);
+    aid = 0;
+  }
+
   if (pevent.type == PAD_DISCONNECT)
-    watchdog_enable(1, 1);
+  {
+    watchdog_enable(2, 1);
+    return old_mask;
+  }
+  else if (pevent.type == PAD_KEY_VBMASK)
+  {
+    if (pevent.vmask == VBMASK_SHARE || pevent.vmask == VBMASK_OPTION)
+    {
+      aid = add_alarm_in_ms(2000, alarm_callback, NULL, false);
+      return old_mask;
+    }
+  }
   old_mask = pevent.vmask;
   return old_mask;
 }
@@ -215,22 +240,18 @@ void wait60thsec(unsigned short n){
 
 void game_main()
 {
+  extern int run_menu();
+
   PADEVENT *evp;
   board_init();
 
+  int sel_game = run_menu();
+
+#if 0
+  init_graphic();
+
   LCD_WriteComm(0x37); //画面中央にするためスクロール設定
   LCD_WriteData2(272);
-
-  printstr(64,80,7,0,"Pico Games");
-  printstr(48,110,7,0,"Connect Gamepad");
-  while(1) {
-    evp = get_pad_event();
-    if (evp)
-    {
-       if (evp->type == PAD_CONNECT)
-         break;
-    }
-  }
 
   clearscreen();
 
@@ -253,4 +274,5 @@ void game_main()
     else if (vmask & VBMASK_RIGHT)
       tetris_main();
   }
+#endif
 }

@@ -50,7 +50,7 @@ typedef struct zero2_input_report ZERO2_INPUT_REPORT;
 ZERO2_INPUT_REPORT zero2_cur_report;
 ZERO2_INPUT_REPORT zero2_prev_report;
 
-static void Zero2_PadKey_Events(struct zero2_input_report *rp, uint32_t vbutton);
+static void Zero2_PadKey_Events(uint8_t mode, struct zero2_input_report *rp, uint32_t vbutton);
 
 #define	VBMASK_CHECK	(VBMASK_DOWN|VBMASK_RIGHT|VBMASK_LEFT| \
 			 VBMASK_UP|VBMASK_PS|VBMASK_TRIANGLE| \
@@ -115,7 +115,7 @@ static void Zero2DecodeInputReport(HID_REPORT *report)
       if (rp->buttons[5] & 0x20)
         vbutton |= VBMASK_PS;
 
-      Zero2_PadKey_Events(rp, vbutton);
+      Zero2_PadKey_Events(report->hid_mode, rp, vbutton);
     }
   }
 }
@@ -126,7 +126,7 @@ static int pad_timer;
 /**
  * @brief Convert HID input report to LVGL kaycode
  */
-static void Zero2_PadKey_Events(struct zero2_input_report *rp, uint32_t vbutton)
+static void Zero2_PadKey_Events(uint8_t hid_mode, struct zero2_input_report *rp, uint32_t vbutton)
 {
   UNUSED(rp);
 
@@ -138,7 +138,29 @@ static void Zero2_PadKey_Events(struct zero2_input_report *rp, uint32_t vbutton)
     changed = last_button ^ vbutton;
     changed &= VBMASK_CHECK;
 
-    post_vkeymask(vbutton);
+    PADKEY_EVENT padevent;
+
+    if (hid_mode == HID_MODE_LVGL)
+    {
+      while (changed && padkey->mask)
+      {
+        if (changed & padkey->mask)
+        {
+           changed &= ~padkey->mask;
+           padevent.lvkey = padkey->lvkey;
+           padevent.type = (vbutton & padkey->mask)? PAD_KEY_PRESS : PAD_KEY_RELEASE;
+           padevent.cread = (changed != 0)? true : false;
+           post_padevent(&padevent);
+        }
+        padkey++;
+      }
+    }
+    else
+    {
+      padevent.type = PAD_KEY_VBMASK;
+      padevent.vmask = vbutton;
+      post_padevent(&padevent);
+    }
     last_button = vbutton;
   }
 }

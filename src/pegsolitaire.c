@@ -3,8 +3,6 @@
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
 #include "hardware/spi.h"
-#include "LCDdriver.h"
-#include "graphlib.h"
 #include "picogames.h"
 
 #define BOARDXSIZE 7

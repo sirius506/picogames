@@ -55,15 +55,8 @@
 #include "pico/stdlib.h"
 #include "pico/util/queue.h"
 #include "btstack_config.h"
-#include "btstack.h"
 #include "gamepad.h"
 #include "btapi.h"
-
-#define	BT_STATE_INIT	0
-#define	BT_STATE_SCAN	1
-#define	BT_STATE_HID_CONNECT	2
-#define	BT_STATE_HID_CLOSING	4
-#define	BT_STATE_HID_MASK	0x06
 
 #define COD_GAMEPAD     0x002508
 #define MAX_ATTRIBUTE_VALUE_SIZE 300
@@ -72,32 +65,9 @@
 
 queue_t btreq_queue;
 
-enum DEVICE_STATE {
-  REMOTE_NAME_INIT, REMOTE_NAME_REQUEST, REMOTE_NAME_INQUIRED, REMOTE_NAME_FETCHED
-};
-
-typedef struct {
-  bd_addr_t  bdaddr;
-  uint32_t   CoD;
-  uint16_t   cHandle;	/* connection handle */
-} PEER_DEVICE;
-
-struct device {
-  bd_addr_t address;
-  uint8_t pageScanRepetitionMode;
-  uint16_t clockOffset;
-  uint32_t CoD;
-  enum DEVICE_STATE state;
-};
-
-typedef struct {
-  uint16_t state;
-  uint16_t hid_host_cid;
-  int      deviceCount;
-  PEER_DEVICE hidDevice;
-} BTSTACK_INFO;
-
 BTSTACK_INFO BtStackInfo;
+static HID_REPORT hidreport;
+
 
 #define	INQUIRY_INTERVAL 5
 
@@ -478,10 +448,10 @@ static void packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *pack
                             pinfo->state |= BT_STATE_HID_CONNECT;
                             printf("HID Host connected.\n");
 
-                            pico_set_led(LED_ON);
-
                             padDriver = IsSupportedGamePad(hid_vid, hid_pid);
                             post_event(PAD_CONNECT, 0, (void *)padDriver);
+
+                            hidreport.hid_mode = HID_MODE_LVGL;
 
                             if (padDriver)
                             {
@@ -517,11 +487,9 @@ static void packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *pack
                             // Handle input report.
                             if (padDriver)
                             {
-                                HID_REPORT report;
-
-                                report.ptr = (uint8_t *)hid_subevent_report_get_report(packet);
-                                report.len = hid_subevent_report_get_report_len(packet);
-                                (padDriver->DecodeInputReport)(&report);
+                                hidreport.ptr = (uint8_t *)hid_subevent_report_get_report(packet);
+                                hidreport.len = hid_subevent_report_get_report_len(packet);
+                                (padDriver->DecodeInputReport)(&hidreport);
                             }
                             break;
 
@@ -555,7 +523,6 @@ static void packet_handler (uint8_t packet_type, uint16_t channel, uint8_t *pack
                             pinfo->state &= ~BT_STATE_HID_MASK;
                             hid_host_descriptor_available = false;
                             printf("HID Host disconnected.\n");
-                            pico_set_led(LED_OFF);
                             post_event(PAD_DISCONNECT, 0, (void *)padDriver);
                             gap_disconnect(pinfo->hidDevice.cHandle);
                             pinfo->hid_host_cid = 0;
@@ -685,7 +652,6 @@ void  switch_queue_process(btstack_data_source_t *ds, btstack_data_source_callba
           printf("Stopping scan..\n");
           gap_inquiry_stop();
           info->state &= ~BT_STATE_SCAN;
-          pico_set_led(LED_OFF);
         }
         break;
       case BB_SCAN:
@@ -693,8 +659,13 @@ void  switch_queue_process(btstack_data_source_t *ds, btstack_data_source_callba
         {
           printf("Starting scan..\n");
           gap_inquiry_start(INQUIRY_INTERVAL);
-          pico_set_led(LED_BLINK);
           info->state = BT_STATE_SCAN;
+        }
+        else if (info->state & BT_STATE_SCAN)
+        {
+          printf("Stopping scan..\n");
+          gap_inquiry_stop();
+          info->state &= ~BT_STATE_SCAN;
         }
         break;
       default:
@@ -702,6 +673,13 @@ void  switch_queue_process(btstack_data_source_t *ds, btstack_data_source_callba
       }
     }
   }
+}
+
+uint16_t get_btstack_state()
+{
+  BTSTACK_INFO *info = &BtStackInfo;
+
+  return info->state;
 }
 
 int btstack_main(int argc, const char * argv[]);
@@ -734,6 +712,11 @@ void post_btreq(BBEVENT code)
     queue_try_add(&btreq_queue, &code);
     btstack_run_loop_poll_data_sources_from_irq();
   }
+}
+
+void set_hid_mode(uint8_t mode)
+{
+  hidreport.hid_mode = mode;
 }
 
 /* EXAMPLE_END */

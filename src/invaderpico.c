@@ -6,9 +6,6 @@
 #include "pico/util/queue.h"
 #include "hardware/pwm.h"
 #include "hardware/spi.h"
-#include "LCDdriver.h"
-#include "graphlib.h"
-#include "gamepad.h"
 #include "picogames.h"
 
 extern unsigned char bmp_missile1[],bmp_missile2[];
@@ -89,21 +86,9 @@ void keycheck(void){
 //ボタン状態読み取り
 //keystatus :現在押されているボタンに対応するビットを1にする
 //keystatus2:前回押されていなくて、今回押されたボタンに対応するビットを1にする
-#if 0
-   PADEVENT *pevent;
-
-   oldkey = keystatus;
-   pevent = get_pad_event();
-   if (pevent != NULL)
-   {
-     keystatus = pevent->vmask;
-     keystatus2=keystatus & ~oldkey; //ボタンから手を離したかチェック
-   }
-#else
    oldkey = keystatus;
    keystatus = get_pad_vmask();
    keystatus2=keystatus & ~oldkey; //ボタンから手を離したかチェック
-#endif
 }
 void initgame(void){
 //ゲーム初期化

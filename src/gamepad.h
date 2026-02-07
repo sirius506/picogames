@@ -3,6 +3,11 @@
 #include "dualsense_report.h"
 #include "dualshock4_report.h"
 
+#include "lvgl.h"
+
+#define	HID_MODE_LVGL	0
+#define	HID_MODE_GAME	1
+
 #define	VID_SONY	0x054C
 #define	VID_8BITDO	0x2DC8
 #define	PID_DUALSHOCK	0x09CC
@@ -63,6 +68,7 @@
 typedef struct {
   uint8_t  *ptr;
   uint16_t len;
+  uint8_t  hid_mode;
 } HID_REPORT;
 
 typedef struct sGamePadDriver {
@@ -76,7 +82,7 @@ typedef struct sGamePadDriver {
 
 typedef struct {
   uint32_t mask;
-  uint16_t padcode;
+  lv_key_t lvkey;
   char     *name;
 } PADKEY_DATA;
 
@@ -106,6 +112,7 @@ struct gamepad_inputs {
 };
 
 typedef enum {
+  PAD_KEY_VBMASK,
   PAD_KEY_PRESS,
   PAD_KEY_RELEASE,
   PAD_TOUCH_PRESS,
@@ -114,7 +121,6 @@ typedef enum {
   PAD_RIGHT_STICK,
   PAD_CONNECT,
   PAD_DISCONNECT,
-  PAD_VBMASK,
 } PADEVENT_TYPE;
 
 typedef struct {
@@ -123,6 +129,14 @@ typedef struct {
   uint32_t  vmask;
   void      *ptr;
 } PADEVENT;
+
+typedef struct {
+  PADEVENT_TYPE type;
+  uint16_t  lvkey;
+  uint16_t  cread;
+  uint32_t  vmask;
+  void      *ptr;
+} PADKEY_EVENT;
 
 typedef struct {
   uint16_t x;
@@ -158,5 +172,7 @@ extern const GAMEPAD_DRIVER *IsSupportedGamePad(uint16_t vid, uint16_t pid);
 extern const PADKEY_DATA *GetPadKeyTable();
 extern void post_event(uint16_t type, uint16_t code, void *ptr);
 extern void post_vkeymask(uint32_t mask);
+extern void post_padevent(PADKEY_EVENT *padevent);
+PADEVENT *read_pad_event();
 
 #endif

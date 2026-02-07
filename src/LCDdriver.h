@@ -19,9 +19,18 @@
 #define LCD_RESET 15 //GPIO15
 #define SPICH spi1
 
+#define	TOUCH_IRQ	2
+#define	TOUCH_MOSI	3
+#define	TOUCH_MISO	4
+#define	TOUCH_CS	5
+#define	TOUCH_SCK	6
+#define	TOUCH_SPI	spi0
+
 void LCD_WriteComm(unsigned char comm);
+void LCD_WriteComm2(unsigned char *comm, int commlen, unsigned char *param, int paramlen);
 void LCD_WriteData(unsigned char data);
 void LCD_WriteData2(unsigned short data);
+void LCD_WriteData3(unsigned char *cmd, int cmd_size, unsigned char *param, int param_size);
 void LCD_WriteDataN(unsigned char *b,int n);
 void LCD_Init(void);
 void LCD_SetCursor(unsigned short x, unsigned short y);

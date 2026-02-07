@@ -15,7 +15,7 @@
 
 uint8_t ds4calibdata[DS4_FEATURE_REPORT_CALIBRATION_SIZE+4];
 
-static void DS4_PadKey_Events(struct ds4_input_report *rp, uint8_t hat, uint32_t vbutton, HID_REPORT *rep);
+static void DS4_PadKey_Events(uint8_t mode, struct ds4_input_report *rp, uint8_t hat, uint32_t vbutton, HID_REPORT *rep);
 
 static struct ds4_data DsData;
 
@@ -136,7 +136,7 @@ static void DualShockDecodeInputReport(HID_REPORT *report)
     vbutton |= (rp->buttons[0] & 0xf0)>> 4;	/* Square, Cross, Circle, Triangle */
     vbutton |= hatmap[hat];
 
-    DS4_PadKey_Events(rp, hat, vbutton, report);
+    DS4_PadKey_Events(report->hid_mode, rp, hat, vbutton, report);
   }
 
   if ((rp->status[0] & 0x0F) != prev_blevel)
@@ -302,7 +302,7 @@ static void decode_stick(struct ds4_input_report *rp)
 /**
  * @brief Convert HID input report to LVGL kaycode
  */
-static void DS4_PadKey_Events(struct ds4_input_report *rp, uint8_t hat, uint32_t vbutton, HID_REPORT *rep)
+static void DS4_PadKey_Events(uint8_t mode, struct ds4_input_report *rp, uint8_t hat, uint32_t vbutton, HID_REPORT *rep)
 {
   UNUSED(hat);
 
@@ -314,20 +314,29 @@ static void DS4_PadKey_Events(struct ds4_input_report *rp, uint8_t hat, uint32_t
     changed = last_button ^ vbutton;
     changed &= VBMASK_CHECK;
 
-#if 0
-    while (changed && padkey->mask)
-    {
-      if (changed & padkey->mask)
-      {
-        changed &= ~padkey->mask;
+    PADKEY_EVENT padevent;
 
-        post_event((vbutton & padkey->mask)? PAD_KEY_PRESS : PAD_KEY_RELEASE, padkey->padcode, NULL);
+    if (mode == HID_MODE_LVGL)
+    {
+      while (changed && padkey->mask)
+      {
+        if (changed & padkey->mask)
+        {
+          changed &= ~padkey->mask;
+          padevent.lvkey = padkey->lvkey;
+          padevent.type = (vbutton & padkey->mask)? PAD_KEY_PRESS : PAD_KEY_RELEASE;
+          padevent.cread = (changed != 0)? true : false;
+          post_padevent(&padevent);
+        }
+        padkey++;
       }
-      padkey++;
     }
-#else
-    post_vkeymask(vbutton);
-#endif
+    else
+    {
+      padevent.type = PAD_KEY_VBMASK;
+      padevent.vmask = vbutton;
+      post_padevent(&padevent);
+    }
     last_button = vbutton;
   }
 #ifdef USE_PAD_TIMER

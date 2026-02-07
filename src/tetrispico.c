@@ -4,8 +4,6 @@
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
 #include "hardware/spi.h"
-#include "LCDdriver.h"
-#include "graphlib.h"
 #include "tetris.h"
 #include "picogames.h"
 

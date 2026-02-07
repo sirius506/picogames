@@ -1,8 +1,6 @@
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
 #include "hardware/spi.h"
-#include "LCDdriver.h"
-#include "graphlib.h"
 #include "picogames.h"
 
 extern const uint8_t *Image[10]; //駒画像ポインタの配列

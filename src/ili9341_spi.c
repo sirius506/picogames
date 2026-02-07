@@ -45,6 +45,19 @@ void LCD_WriteComm(unsigned char comm){
 	lcd_cs_hi();
 }
 
+void LCD_WriteComm2(uint8_t *comm, int commlen, uint8_t *param, int paramlen)
+{
+    lcd_dc_lo();
+    lcd_cs_lo();
+    spi_write_blocking(SPICH, comm , commlen);
+    if (paramlen > 0)
+    {
+        lcd_dc_hi();
+        spi_write_blocking(SPICH, param , paramlen);
+    }
+    lcd_cs_hi();
+}
+
 void LCD_WriteData(unsigned char data)
 {
 // Write Data
@@ -63,6 +76,20 @@ void LCD_WriteData2(unsigned short data)
     d=(data>>8) | (data<<8);
 	spi_write_blocking(SPICH, (unsigned char *)&d, 2);
 	lcd_cs_hi();
+}
+
+void LCD_WriteData3(uint8_t *cmd, int cmd_size, uint8_t *param, int param_size)
+{
+    lcd_dc_lo();
+    lcd_cs_lo();
+    if (cmd_size > 0)
+	spi_write_blocking(SPICH, cmd, cmd_size);
+    if (param_size > 0)
+    {
+      lcd_dc_hi();
+      spi_write_blocking(SPICH, param, param_size);
+    }
+    lcd_cs_hi();
 }
 
 void LCD_WriteDataN(unsigned char *b,int n)

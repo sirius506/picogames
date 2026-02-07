@@ -11,7 +11,7 @@ static int initial_report;
 static struct dsense_data DsData;
 static int16_t calibVals[17];
 
-static void DualSense_PadKey_Events(struct dualsense_input_report *rp, uint8_t hat, uint32_t vbutton);
+static void DualSense_PadKey_Events(uint8_t mode, struct dualsense_input_report *rp, uint8_t hat, uint32_t vbutton);
 
 /* 0x08:  No button
  * 0x00:  Up
@@ -113,7 +113,7 @@ static void process_accel(struct dualsense_input_report *rp)
 /*
  * Decode DualSense Input report
  */
-static void decode_report(struct dualsense_input_report *rp)
+static void decode_report(HID_REPORT *report, struct dualsense_input_report *rp)
 {
   uint8_t hat;
   uint32_t vbutton;
@@ -125,7 +125,7 @@ static void decode_report(struct dualsense_input_report *rp)
   vbutton |= (rp->buttons[0] & 0xf0)>> 4;	/* Square, Cross, Circle, Triangle */
   vbutton |= hatmap[hat];
 
-  DualSense_PadKey_Events(rp, hat, vbutton);
+  DualSense_PadKey_Events(report->hid_mode, rp, hat, vbutton);
 
   if (rp->battery_level != prev_blevel)
   {
@@ -171,7 +171,7 @@ static void DualSenseDecodeInputReport(HID_REPORT *report)
 
   dcount++;
 
-  decode_report(rp);
+  decode_report(report, rp);
 #ifdef ENABLE_OUTPUT_REPORT
   process_bt_reports(report->hid_mode);
 #endif
@@ -443,7 +443,7 @@ static void decode_stick(struct dualsense_input_report *rp)
 /**
  * @brief Convert HID input report to PAD_KEY events
  */
-static void DualSense_PadKey_Events(struct dualsense_input_report *rp, uint8_t hat, uint32_t vbutton)
+static void DualSense_PadKey_Events(uint8_t mode, struct dualsense_input_report *rp, uint8_t hat, uint32_t vbutton)
 {
   UNUSED(hat);
 
@@ -455,21 +455,29 @@ static void DualSense_PadKey_Events(struct dualsense_input_report *rp, uint8_t h
     changed = last_button ^ vbutton;
     changed &= VBMASK_CHECK;
 
-#if 0
-    while (changed && padkey->mask)
+    PADKEY_EVENT padevent;
+
+    if (mode == HID_MODE_LVGL)
     {
-      if (changed & padkey->mask)
+      while (changed && padkey->mask)
       {
-        changed &= ~padkey->mask;
-
-        post_event((vbutton & padkey->mask)? PAD_KEY_PRESS : PAD_KEY_RELEASE, padkey->padcode, NULL);
-
+        if (changed & padkey->mask)
+        {
+          changed &= ~padkey->mask;
+          padevent.lvkey = padkey->lvkey;
+          padevent.type = (vbutton & padkey->mask)? PAD_KEY_PRESS : PAD_KEY_RELEASE;
+          padevent.cread = (changed != 0)? true : false;
+          post_padevent(&padevent);
+        }
+        padkey++;
       }
-      padkey++;
     }
-#else
-    post_vkeymask(vbutton);
-#endif
+    else
+    {
+      padevent.type = PAD_KEY_VBMASK;
+      padevent.vmask = vbutton;
+      post_padevent(&padevent);
+    }
     last_button = vbutton;
   }
 #ifdef USE_PAD_TIMER
