@@ -3,6 +3,8 @@
 Collection of Raspberry Pi Pico games
 developped by KenKenMkIISR (https:github.com/KenKenMkIISR).
 
+<img src="https://github.com/user-attachments/assets/9521ac69-d72e-47dd-be2a-20747da42ce9" width="500">
+
 Five games have ported to Pico W to support wireless game controllers
 and game selection GUI has added.
 * Invader
@@ -22,6 +24,9 @@ Picogames hardware is VERY simple. It consists of the following parts:
 - Raspberry Pi Pico W
 - MSP2807 LCD Module (ILI9341 and XPT2046)
 - Piezo sounder
+
+<img src="https://github.com/user-attachments/assets/fb5a2e8f-8c71-474c-8521-f9404bfbac05" width="500">
+<img src="https://github.com/user-attachments/assets/d3f47e46-e8ec-42de-adac-59f4553cbba7" width="500">
 
 Schematics is available as picogames.pdf.
 
