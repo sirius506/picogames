@@ -16,6 +16,15 @@ Currently, below three Bluetooth controllers are supported.
 * Sony DualShock4
 * 8BitDo Zero2
 
+## Hardware
+
+Picogames hardware is VERY simple. It consists of the following parts:
+- Raspberry Pi Pico W
+- MSP2807 LCD Module (ILI9341 and XPT2046)
+- Piezo sounder
+
+Schematics is available as picogames.pdf.
+
 ## Screen Images
 ### Start up
 <img src="https://github.com/user-attachments/assets/8c05825d-f263-417f-9ab6-cb37612fca72" width="400">
