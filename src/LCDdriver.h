@@ -1,3 +1,4 @@
+#include "pico/stdlib.h"
 #define VERTICAL 0
 #define HORIZONTAL 1
 #define LCD_ALIGNMENT VERTICAL
@@ -11,20 +12,28 @@
 	#define Y_RES 240 // 縦方向解像度
 #endif
 
-#define	LCD_SCK	  10
-#define	LCD_MOSI  11
-#define	LCD_MISO  12
-#define LCD_CS    13 //GPIO13
-#define LCD_DC    14 //GPIO14
-#define LCD_RESET 15 //GPIO15
-#define SPICH spi1
+static inline void lcd_cs_lo() {
+    asm volatile("nop \n nop \n nop");
+    gpio_put(LCD_CS, 0);
+    asm volatile("nop \n nop \n nop");
+}
 
-#define	TOUCH_IRQ	2
-#define	TOUCH_MOSI	3
-#define	TOUCH_MISO	4
-#define	TOUCH_CS	5
-#define	TOUCH_SCK	6
-#define	TOUCH_SPI	spi0
+static inline void lcd_cs_hi() {
+    asm volatile("nop \n nop \n nop");
+    gpio_put(LCD_CS, 1);
+    asm volatile("nop \n nop \n nop");
+}
+
+static inline void lcd_dc_lo() {
+    asm volatile("nop \n nop \n nop");
+    gpio_put(LCD_DC, 0);
+    asm volatile("nop \n nop \n nop");
+}
+static inline void lcd_dc_hi() {
+    asm volatile("nop \n nop \n nop");
+    gpio_put(LCD_DC, 1);
+    asm volatile("nop \n nop \n nop");
+}
 
 void LCD_WriteComm(unsigned char comm);
 void LCD_WriteComm2(unsigned char *comm, int commlen, unsigned char *param, int paramlen);

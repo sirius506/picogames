@@ -4,21 +4,26 @@
  * Board dependent routines.
  *
  */
-#include <stdlib.h>
-#include <stdio.h>
-#include "pico/stdlib.h"
+#include "hardware/dma.h"
 #include "hardware/pwm.h"
 #include "hardware/spi.h"
+#include "pico/stdlib.h"
+#include <stdio.h>
 #include "picogames.h"
 
 #define	Z_THRESHOLD	400
 #define	Z_THRESHOLD_INT	75
 #define	MSEC_THRESHOLD	3
 
+#define	USE_DMA
+
 uint pwm_slice_num;
 
 int16_t xraw, yraw, zraw;
 int32_t msraw;
+
+static uint spi_dma;
+static dma_channel_config  dma_config;
 
 void sound_init()
 {
@@ -66,6 +71,13 @@ void lcd_port_init()
     gpio_put(LCD_RESET, 1);
     gpio_set_dir(LCD_RESET, GPIO_OUT);
 
+#ifdef USE_DMA
+    spi_dma = dma_claim_unused_channel(true);
+    dma_config = dma_channel_get_default_config(spi_dma);
+    channel_config_set_transfer_data_size(&dma_config, DMA_SIZE_8);
+    channel_config_set_dreq(&dma_config, spi_get_dreq(SPICH, true));
+#endif
+
     /* Setup touch port */
     spi_init(TOUCH_SPI, 10000 * 1000);
     gpio_set_function(TOUCH_MISO, GPIO_FUNC_SPI);
@@ -79,6 +91,25 @@ void lcd_port_init()
     gpio_set_dir(TOUCH_IRQ, GPIO_IN);
     gpio_pull_up(TOUCH_IRQ);
   
+}
+
+void lcd_send_data(const uint8_t *cmd, int cmd_size, uint8_t *bp, int dlen)
+{
+    lcd_dc_lo();
+    lcd_cs_lo();
+    if (cmd_size > 0)
+	spi_write_blocking(SPICH, cmd, cmd_size);
+    lcd_dc_hi();
+    if (dlen > 0)
+    {
+      dma_channel_configure(spi_dma, &dma_config,
+           &spi_get_hw(SPICH)->dr,
+           bp,
+           dlen,
+           true);
+      dma_channel_wait_for_finish_blocking(spi_dma);
+    }
+    lcd_cs_hi();
 }
 
 uint8_t touch_read_irq()
@@ -106,6 +137,7 @@ extern const unsigned char InvFontData[];
 
 void board_init()
 {
+//sleep_ms(3000);
     set_font_data(InvFontData);
     sound_init();
     lcd_port_init();

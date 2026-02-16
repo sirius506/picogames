@@ -756,7 +756,7 @@ static void game(void){
 
 extern const unsigned char TetrisFontData[];
 
-int tetris_main(void){
+void tetris_main(void){
 
     set_font_data(TetrisFontData);
 

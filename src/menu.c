@@ -19,14 +19,10 @@ static uint8_t swap_buffer[DBUF_SIZE];
 
 static struct repeating_timer blink_timer;
 static lv_obj_t *button;
+static critical_section_t crit_sec;
 
 extern void set_hid_mode(uint8_t mode);
-
-extern void inv_main(void);
-extern void hakomusu_main(void);
-extern void pacman_main(void);
-extern void tetris_main(void);
-extern void peg_main(void);
+extern void wsdemo_main();
 
 /* Declare Bluetooth button images */
 LV_IMG_DECLARE(bluetooth_black)
@@ -51,7 +47,8 @@ static void send_color_cb(lv_display_t *disp, const uint8_t *cmd, size_t cmd_siz
     *dst++ = param[0];
     param += 2;
   }
-  LCD_WriteData3((uint8_t *)cmd, cmd_size, (uint8_t *)swap_buffer, param_size);
+
+  lcd_send_data(cmd, cmd_size, swap_buffer, param_size);
 
   lv_display_flush_ready(disp);
 }
@@ -67,7 +64,6 @@ bool lvgl_tick_callback(struct repeating_timer *t) {
 
 static uint32_t get_millis(void)
 {
-  critical_section_t crit_sec;
   critical_section_enter_blocking(&crit_sec);
   uint32_t ms = to_ms_since_boot(get_absolute_time());
   critical_section_exit(&crit_sec);
@@ -82,6 +78,7 @@ static struct repeating_timer tick_timer;
 void setup_lvgl_tick()
 {
 
+  critical_section_init(&crit_sec);
   lv_tick_set_cb(get_millis);
 
   add_repeating_timer_ms( 1, lvgl_tick_callback, NULL, &tick_timer);
@@ -173,7 +170,7 @@ static void keypad_read(lv_indev_t *dev, lv_indev_data_t *data)
   }
 }
 
-int run_menu()
+int run_menu(int wsmode)
 {
   lv_display_t *disp;
   lv_indev_t *indev;
@@ -197,13 +194,21 @@ int run_menu()
   lv_indev_set_read_cb(keydev, keypad_read);
 
   lv_obj_t *label;
+  char *title;
+
+  title = wsmode? "WS2821B Demo" : "PicoGames";
 
   tfont = &lv_font_montserrat_16;
   label = lv_label_create(lv_screen_active());
-  lv_label_set_text(label, "Pico Games");
+  lv_label_set_text(label, title);
   lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_font(label, tfont, 0);
   lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 40);
+
+  if (wsmode)
+  {
+    wsdemo_main();
+  }
 
   label = lv_label_create(lv_screen_active());
   lv_label_set_text(label, "Please connect Game Controller\nor\nStart pairing");

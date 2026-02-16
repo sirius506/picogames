@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.12)
 
 set(NAME picogames)
-set(PICO_BOARD "pico_w")
-set(PICO_PLATFORM "rp2040")
-#set(PICO_BOARD "pico2_w")
-#set(PICO_PLATFORM "rp2350")
+#set(PICO_BOARD "pico_w")
+#set(PICO_PLATFORM "rp2040")
+set(PICO_BOARD "pico2_w")
+set(PICO_PLATFORM "rp2350")
 set(PICO_STDIO_USB 1)
 
 # Pull in SDK (must be before project)
@@ -21,9 +21,12 @@ add_subdirectory(lvgl)
 
 add_executable(${PROJECT_NAME})
 
+pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/src/ws2812.pio)
+
 target_sources(${PROJECT_NAME} PRIVATE
 	src/XPT2046.c
         src/main.c
+	src/wsdemo.c
 	src/hakoirimusume.c
 	src/hakomusu_image.c
 	src/menu.c
@@ -48,6 +51,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/bluetooth_black.c
 	src/bluetooth_scan_black.c
 	src/bluetooth_scan_blue.c
+	src/apds9960.c
 )
 
 # Pull in basic dependencies
@@ -58,7 +62,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   pico_btstack_cyw43
   pico_cyw43_arch_none
   pico_multicore
-  hardware_spi hardware_pwm
+  hardware_pio
+  hardware_spi
+  hardware_pwm
+  hardware_i2c
   lvgl
 )
 

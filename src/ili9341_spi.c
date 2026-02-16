@@ -1,30 +1,7 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
-#include "LCDdriver.h"
-
-static inline void lcd_cs_lo() {
-    asm volatile("nop \n nop \n nop");
-    gpio_put(LCD_CS, 0);
-    asm volatile("nop \n nop \n nop");
-}
-
-static inline void lcd_cs_hi() {
-    asm volatile("nop \n nop \n nop");
-    gpio_put(LCD_CS, 1);
-    asm volatile("nop \n nop \n nop");
-}
-
-static inline void lcd_dc_lo() {
-    asm volatile("nop \n nop \n nop");
-    gpio_put(LCD_DC, 0);
-    asm volatile("nop \n nop \n nop");
-}
-static inline void lcd_dc_hi() {
-    asm volatile("nop \n nop \n nop");
-    gpio_put(LCD_DC, 1);
-    asm volatile("nop \n nop \n nop");
-}
+#include "picogames.h"
 
 static inline void lcd_reset_lo() {
     asm volatile("nop \n nop \n nop");
@@ -76,20 +53,6 @@ void LCD_WriteData2(unsigned short data)
     d=(data>>8) | (data<<8);
 	spi_write_blocking(SPICH, (unsigned char *)&d, 2);
 	lcd_cs_hi();
-}
-
-void LCD_WriteData3(uint8_t *cmd, int cmd_size, uint8_t *param, int param_size)
-{
-    lcd_dc_lo();
-    lcd_cs_lo();
-    if (cmd_size > 0)
-	spi_write_blocking(SPICH, cmd, cmd_size);
-    if (param_size > 0)
-    {
-      lcd_dc_hi();
-      spi_write_blocking(SPICH, param, param_size);
-    }
-    lcd_cs_hi();
 }
 
 void LCD_WriteDataN(unsigned char *b,int n)

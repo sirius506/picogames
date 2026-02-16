@@ -5,8 +5,8 @@ developped by KenKenMkIISR (https:github.com/KenKenMkIISR).
 
 <img src="https://github.com/user-attachments/assets/9521ac69-d72e-47dd-be2a-20747da42ce9" width="500">
 
-Five games have ported to Pico W to support wireless game controllers
-and game selection GUI has added.
+Five games have ported to Pico W and/or Pico 2W to support
+wireless game controllers and game selection GUI has added.
 * Invader
 * Pacman
 * Tetris
@@ -21,25 +21,45 @@ Currently, below three Bluetooth controllers are supported.
 ## Hardware
 
 Picogames hardware is VERY simple. It consists of the following parts:
-- Raspberry Pi Pico W
+- Raspberry Pi Pico W or Pico 2W
 - MSP2807 LCD Module (ILI9341 and XPT2046)
 - Piezo sounder
+- Optional gesture sensor APDS-9960
 
 <img src="https://github.com/user-attachments/assets/fb5a2e8f-8c71-474c-8521-f9404bfbac05" width="500">
 <img src="https://github.com/user-attachments/assets/d3f47e46-e8ec-42de-adac-59f4553cbba7" width="500">
 
 Schematics is available as picogames.pdf.
 
+## Keypad Usage
+
+| Game Key | Keypad |
+|----------|--------|
+| Up       | Up Key |
+| Right    | Right Key |
+| Down     | Down Key |
+| Left     | Left Key |
+| Start    | Square Key |
+| Fire     | Circle Key |
+
 ## Screen Images
 ### Start up
 <img src="https://github.com/user-attachments/assets/8c05825d-f263-417f-9ab6-cb37612fca72" width="400">
+
+When firmware has started, it waits for connection from game controller or enter pairing mode. By clicking bluetooth icon, firmware moves to pairing mode.
 
 ### Pairing
 <img src="https://github.com/user-attachments/assets/04b06324-2d97-44a6-a98d-9651aee32af1" width="400">
 <img src="https://github.com/user-attachments/assets/aa4b9011-52c7-47f9-a5a1-99a85202cacd" width="400">
 
+In pairing mode, picogames firmware searches supported game contoller and blinks scanning icon. When 8BitDo zero2 is used, it must be started as macOS mode by pressing A and start buttons.
+
+Once game controller has found, firmware automatically connects to it and LCD display shows game select screen.
+
 ### Game select
 <img src="https://github.com/user-attachments/assets/2198ef4b-2510-487c-afd3-37bd7b4a8088" width="400">
+
+In game select screen, you can touch one of game name buttons. You can also use game pad direction keys for game selection and circle button to start the game.
 
 ### Invader
 <img src="https://github.com/user-attachments/assets/4d85d2c9-1e4c-49ce-bc23-4904680564b8" width="400">

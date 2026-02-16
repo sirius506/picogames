@@ -14,26 +14,29 @@
 #include "hardware/watchdog.h"
 #include "btapi.h"
 #include "picogames.h"
+#include "apds9960.h"
 
 extern int btstack_main(int argc, const char *argv[]);
 
+mutex_t padevent_mutex;
 queue_t padevent_queue;
 
 btstack_packet_callback_registration_t hci_event_callback_registration;
 
-extern void inv_main(void);
-extern void hakomusu_main(void);
-extern void pacman_main(void);
-extern void tetris_main(void);
-extern void peg_main(void);
 void game_main(void);
+static int wsmode;
 
-void game_core_init()
+int game_core_init()
 {
+
+  mutex_init(&padevent_mutex);
   queue_init(&padevent_queue, sizeof(PADEVENT), 4);
   multicore_reset_core1();
 
+  wsmode = apds_init();
+
   multicore_launch_core1(game_main);
+  return wsmode;
 }
 
 void list_link_keys(void)
@@ -87,20 +90,26 @@ int main(int argc, const char **argv)
     printf("failed to initialize cyw43_arch\n");
     return -1;
   }
+//sleep_ms(3000);
+  if (game_core_init())
+  {
+    apds_run_loop();
+  }
+  else
+  {
+    hci_event_callback_registration.callback = &packet_handler;
+    hci_add_event_handler(&hci_event_callback_registration);
 
-  game_core_init();
-
-  hci_event_callback_registration.callback = &packet_handler;
-  hci_add_event_handler(&hci_event_callback_registration);
-
-  btstack_main(argc, argv);
-  btstack_run_loop_execute();
+    btstack_main(argc, argv);
+    btstack_run_loop_execute();
+  }
 }
 
 void post_event(uint16_t type, uint16_t code, void *ptr)
 {
   PADEVENT event;
 
+  mutex_enter_blocking(&padevent_mutex);
   if (!queue_is_full(&padevent_queue))
   {
     event.type = type;
@@ -109,12 +118,14 @@ void post_event(uint16_t type, uint16_t code, void *ptr)
 
     queue_try_add(&padevent_queue, &event);
   }
+  mutex_exit(&padevent_mutex);
 }
 
 void post_padevent(PADKEY_EVENT *padevent)
 {
   PADEVENT event;
 
+  mutex_enter_blocking(&padevent_mutex);
   if (!queue_is_full(&padevent_queue))
   {
     event.type = padevent->type;
@@ -132,12 +143,14 @@ void post_padevent(PADKEY_EVENT *padevent)
     }
     queue_try_add(&padevent_queue, &event);
   }
+  mutex_exit(&padevent_mutex);
 }
 
 void post_vkeymask(uint32_t mask)
 {
   PADEVENT event;
 
+  mutex_enter_blocking(&padevent_mutex);
   if (!queue_is_full(&padevent_queue))
   {
     event.type = PAD_KEY_VBMASK;
@@ -147,6 +160,7 @@ void post_vkeymask(uint32_t mask)
 
     queue_try_add(&padevent_queue, &event);
   }
+  mutex_exit(&padevent_mutex);
 }
 
 static PADEVENT pevent;
@@ -155,7 +169,9 @@ int check_pad_connect()
 {
   if (queue_is_empty(&padevent_queue))
     return 0;
+  mutex_enter_blocking(&padevent_mutex);
   queue_remove_blocking(&padevent_queue, &pevent);
+  mutex_exit(&padevent_mutex);
   if (pevent.type == PAD_CONNECT)
     return 1;
   return 0;
@@ -167,7 +183,9 @@ PADEVENT *read_pad_event()
 
   if (queue_is_empty(&padevent_queue))
     return NULL;
+  mutex_enter_blocking(&padevent_mutex);
   queue_remove_blocking(&padevent_queue, &pevent);
+  mutex_exit(&padevent_mutex);
 
   switch (pevent.type)
   {
@@ -197,7 +215,9 @@ uint32_t get_pad_vmask()
 
   if (queue_is_empty(&padevent_queue))
     return old_mask;
+  mutex_enter_blocking(&padevent_mutex);
   queue_remove_blocking(&padevent_queue, &pevent);
+  mutex_exit(&padevent_mutex);
 
   if (aid)
   {
@@ -222,16 +242,6 @@ uint32_t get_pad_vmask()
   return old_mask;
 }
 
-uint16_t get_pad_press()
-{
-  if (queue_is_empty(&padevent_queue))
-    return 0;
-  queue_remove_blocking(&padevent_queue, &pevent);
-  if (pevent.type == PAD_KEY_PRESS)
-    return pevent.key_code;
-  return 0;
-}
-
 void wait60thsec(unsigned short n){
 	// 60分のn秒ウェイト
 	uint64_t t=to_us_since_boot(get_absolute_time())%16667;
@@ -240,39 +250,10 @@ void wait60thsec(unsigned short n){
 
 void game_main()
 {
-  extern int run_menu();
+  extern int run_menu(int mode);
 
   PADEVENT *evp;
   board_init();
 
-  int sel_game = run_menu();
-
-#if 0
-  init_graphic();
-
-  LCD_WriteComm(0x37); //画面中央にするためスクロール設定
-  LCD_WriteData2(272);
-
-  clearscreen();
-
-  printstr(64,80,7,0,"Select Game");
-  printstr(48,110,7,0,"Up:    Invader");
-  printstr(48,135,7,0,"Down:  Peg-Solitaire");
-  printstr(48,160,7,0,"Left:  Pacman");
-  printstr(48,185,7,0,"Right: Tetris");
-
-  uint32_t vmask;
-
-  while(1) {
-    vmask = get_pad_vmask();
-    if (vmask & VBMASK_UP)
-      inv_main();
-    else if (vmask & VBMASK_DOWN)
-      peg_main();
-    else if (vmask & VBMASK_LEFT)
-      pacman_main();
-    else if (vmask & VBMASK_RIGHT)
-      tetris_main();
-  }
-#endif
+  run_menu(wsmode);
 }

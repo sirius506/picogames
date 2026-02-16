@@ -1,7 +1,7 @@
 //カラーグラフィックライブラリ
 
+#include "picogames.h"
 #include "graphlib.h"
-#include "LCDdriver.h"
 
 unsigned short palette[256];
 static const unsigned char *FontData;
